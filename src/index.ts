@@ -3,7 +3,7 @@ import { Mesh } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
 
-const renderer = new THREE.WebGLRenderer({ canvas });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); // antialias 扛锯齿
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
@@ -23,6 +23,8 @@ class GameScene extends THREE.Scene {
     0.1,
     1000
   );
+  static controls = new OrbitControls(GameScene.camera, renderer.domElement);
+
   public box: Mesh;
   constructor() {
     super();
@@ -31,12 +33,18 @@ class GameScene extends THREE.Scene {
     // 把相机添加到场景中
     this.add(GameScene.camera);
     this.box = this.addBox();
-    this.add(new THREE.AmbientLight(0xffffff, 0.5));
-    this.add(new THREE.DirectionalLight(0xffffff, 0.5));
+    this.createLight();
+  }
+  createLight() {
+    this.add(new THREE.AmbientLight(0xffffff, 0.2)); // 环境光，颜色，强度
+    const light = new THREE.DirectionalLight(0xffffff, 0.5); // 平行光，颜色，强度
+    // light.position.set(3, 3, 6);
+    this.add(light); // 平行光，才能有光影
   }
   addBox() {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    // const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
     const cube = new THREE.Mesh(geometry, material);
     this.add(cube);
     return cube;
@@ -44,13 +52,13 @@ class GameScene extends THREE.Scene {
 }
 const scene = new GameScene();
 // 理解为轨道相机
-const controls = new OrbitControls(GameScene.camera, renderer.domElement);
-controls.update();
+//
+GameScene.controls.update();
 function animate() {
   requestAnimationFrame(animate);
-  scene.box.rotation.x += 0.01;
-  scene.box.rotation.y += 0.01;
-  controls.update();
+  //   scene.box.rotation.x += 0.01;
+  //   scene.box.rotation.y += 0.01;
+  GameScene.controls.update();
   renderer.render(scene, GameScene.camera);
 }
 
