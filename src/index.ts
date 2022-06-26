@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Mesh } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import gsap from "gsap";
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
 
@@ -25,6 +26,7 @@ class GameScene extends THREE.Scene {
     0.1,
     1000
   );
+  // 让场景可以随着相机移动、旋转
   static controls = new OrbitControls(GameScene.camera, renderer.domElement);
 
   public box: Mesh;
