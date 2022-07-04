@@ -29,10 +29,13 @@ class GameScene extends THREE.Scene {
   // 让场景可以随着相机移动、旋转
   static controls = new OrbitControls(GameScene.camera, renderer.domElement);
   static mixer: THREE.AnimationMixer;
-  static raycaster = new THREE.Raycaster();
-  static pointer = new THREE.Vector2();
+  // 创建射线发生器
+  public raycaster = new THREE.Raycaster();
+  // 定义一个鼠标位置点
+  public pointer = new THREE.Vector2();
 
   public box: Mesh;
+  public clickNum: number = 0;
   constructor() {
     super();
     // 设置相机位置
@@ -61,11 +64,11 @@ class GameScene extends THREE.Scene {
     // 添加灯光到场景
     this.add(light);
     // 灯光helper
-    const helper = new THREE.DirectionalLightHelper(light);
-    this.add(helper);
-    // camerraHeaper
-    const cameraHelper = new THREE.CameraHelper(light.shadow.camera);
-    this.add(cameraHelper);
+    // const helper = new THREE.DirectionalLightHelper(light);
+    // this.add(helper);
+    // // camerraHeaper
+    // const cameraHelper = new THREE.CameraHelper(light.shadow.camera);
+    // this.add(cameraHelper);
   }
   addBox() {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -82,6 +85,29 @@ class GameScene extends THREE.Scene {
       ease: "linear",
     });
     this.add(cube);
+    // 绑定click 事件
+    this.bindEvent(cube, "click", (intersect) => {
+      this.clickNum++;
+      console.log("cube click", intersect, this.clickNum);
+      if (intersect.length > 0) {
+        intersect.forEach((item) => {
+          // 可以根据这个id去判断是点击的哪一个mesh
+          if (item.object.id === 15) {
+            if (this.clickNum % 2 === 0) {
+              item.object.material.color.set(0x00ff00);
+            } else {
+              item.object.material.color.set(0xff0000);
+            }
+          } else {
+            if (this.clickNum % 2 === 0) {
+              item.object.material.color.set(0x0000ff);
+            } else {
+              item.object.material.color.set(0xff6000);
+            }
+          }
+        });
+      }
+    });
     return cube;
   }
   createGround() {
@@ -120,17 +146,43 @@ class GameScene extends THREE.Scene {
       }
     );
   }
+  // 更新射线 发射射线
+  updateRaycaster() {
+    this.raycaster.setFromCamera(this.pointer, GameScene.camera);
+  }
+  bindEvent<T extends THREE.Object3D>(
+    target: T,
+    type: string,
+    callback: (intersect: THREE.Intersection<T>[]) => void
+  ) {
+    renderer.domElement.addEventListener(type, () => {
+      // 单个 判断射线是否与我们的mesh相交
+      // const intersects = this.raycaster.intersectObject<T>(target);
+      // 多个
+      const intersects = this.raycaster.intersectObjects<T>(scene.children);
+      // scene.children 是一个数组，里面存放的是所有的mesh
+      if (intersects.length > 0) {
+        callback(intersects);
+      }
+    });
+  }
 }
 const scene = new GameScene();
 // 理解为轨道相机
 GameScene.controls.update();
 const clock = new THREE.Clock();
 function animate() {
-  requestAnimationFrame(animate);
   GameScene.controls.update();
   // 更新动画
   GameScene.mixer?.update(clock.getDelta());
+  scene.updateRaycaster();
   renderer.render(scene, GameScene.camera);
+  requestAnimationFrame(animate);
 }
 
 animate();
+renderer.domElement.addEventListener("pointermove", (event) => {
+  // 计算一个 -1 到 1的值，pointer 就能实时取到我们光标的位置
+  scene.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+  scene.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+});
