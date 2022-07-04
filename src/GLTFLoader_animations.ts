@@ -3,7 +3,7 @@ import { Mesh } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
-const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
+const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); // antialias 扛锯齿
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -29,6 +29,8 @@ class GameScene extends THREE.Scene {
   // 让场景可以随着相机移动、旋转
   static controls = new OrbitControls(GameScene.camera, renderer.domElement);
   static mixer: THREE.AnimationMixer;
+  static raycaster = new THREE.Raycaster();
+  static pointer = new THREE.Vector2();
 
   public box: Mesh;
   constructor() {
@@ -37,63 +39,56 @@ class GameScene extends THREE.Scene {
     GameScene.camera.position.z = 3;
     // 把相机添加到场景中
     this.add(GameScene.camera);
-    // this.box = this.addBox();
+    this.box = this.addBox();
     this.createLight();
-    this.loadModles();
+    // this.loadModles();
     this.createGround();
   }
   createLight() {
     this.add(new THREE.AmbientLight(0xffffff, 0.5)); // 环境光，颜色，强度
     const light = new THREE.DirectionalLight(0xffffff, 3); // 平行光，颜色，强度
-    // const light = new THREE.PointLight(0xff34ff, 0.5); // 平行光，颜色，强度
-    light.position.set(3, 3, 6);
+    light.position.set(3, 0, 3);
     light.castShadow = true; // 平行光设置 投影
-    light.shadow.mapSize.width = 1024; // 平行光投影 的 宽度
-    light.shadow.mapSize.height = 1024; // 平行光投影 的 长度
+
+    light.shadow.mapSize.width = 512; // 平行光投影 的 宽度
+    light.shadow.mapSize.height = 512; // 平行光投影 的 长度
     light.shadow.radius = 2;
 
     light.shadow.camera.near = 0.5;
-    light.shadow.camera.far = 1000;
+    light.shadow.camera.far = 30;
 
     light.shadow.camera.visible = true;
-    light.shadow.camera.top = light.shadow.camera.right = 1000;
-    light.shadow.camera.bottom = light.shadow.camera.left = -1000;
-    // light.shadow.camera.near = 1;
-    // light.shadow.camera.far = 400000000;
-    this.add(light); // 平行光，才能有光影
-    this.add(new THREE.DirectionalLightHelper(light, 10));
+    // 添加灯光到场景
+    this.add(light);
+    // 灯光helper
+    const helper = new THREE.DirectionalLightHelper(light);
+    this.add(helper);
+    // camerraHeaper
+    const cameraHelper = new THREE.CameraHelper(light.shadow.camera);
+    this.add(cameraHelper);
   }
   addBox() {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
-    // const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    // const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
     const cube = new THREE.Mesh(geometry, material);
-    this.add(cube);
     cube.castShadow = true; //  消费投影
+    cube.position.z = 1.5;
     gsap.to(cube.rotation, {
       duration: 3,
-      y: Math.PI * 2,
+      z: Math.PI * 2,
       repeat: -1,
       yoyo: true,
       ease: "linear",
     });
-
+    this.add(cube);
     return cube;
   }
   createGround() {
-    const geometry = new THREE.PlaneGeometry(10, 10);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xcccccc,
-    });
-    // const planeMat = new THREE.ShadowMaterial({
-    //   color: 0xfff5ff,
-    //   side: THREE.DoubleSide,
-    // });
-    // planeMat.opacity = 0.5;
-    const plane = new THREE.Mesh(geometry, material);
-    plane.rotation.x = -Math.PI / 2;
-    // plane.position.y = -0.5;
-    plane.receiveShadow = true; // 接收投影
+    const planeGeometry = new THREE.PlaneGeometry(10, 10);
+    const plane = new THREE.Mesh(planeGeometry, new THREE.MeshPhongMaterial());
+    plane.position.y = 0;
+    plane.receiveShadow = true;
     this.add(plane);
   }
   loadModles() {
@@ -104,11 +99,18 @@ class GameScene extends THREE.Scene {
       (gltf) => {
         gltf.scene.castShadow = true; //  消费投影
         gltf.scene.scale.set(5, 5, 5); // 缩放
+        gltf.scene.position.z = 0.5;
         console.log("动画", gltf.animations);
         this.add(gltf.scene);
         // 去播放动画
         const mixer = new THREE.AnimationMixer(gltf.scene);
-        mixer.clipAction(gltf.animations[0]).play();
+        // 播放某一个动画
+        // mixer.clipAction(gltf.animations[0]).play();
+        mixer
+          .clipAction(
+            THREE.AnimationClip.findByName(gltf.animations, "nyi_loop")
+          )
+          .play();
 
         GameScene.mixer = mixer;
       },
@@ -121,14 +123,12 @@ class GameScene extends THREE.Scene {
 }
 const scene = new GameScene();
 // 理解为轨道相机
-//
 GameScene.controls.update();
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
-  //   scene.box.rotation.x += 0.01;
-  //   scene.box.rotation.y += 0.01;
   GameScene.controls.update();
+  // 更新动画
   GameScene.mixer?.update(clock.getDelta());
   renderer.render(scene, GameScene.camera);
 }
